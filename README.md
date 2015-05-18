@@ -77,7 +77,7 @@ SSH host keys will also be absent during the very first phases of booting, becau
 
 To access the device, it depends on which mode you selected for the first boot during the build of the image.
 
-In host mode: plug it into a USB hub using the female-to-female adapter, then plug to the hub a DisplayLink monitor and a keyboard.  Optionally, plug a network card into the USB hub as well.  Then plug the power socket on the adapter, and watch the device boot onscreen.  If you did not specify an SSH public key to access the device when you built the image, you can now log in as root (the device will be password-free).  Network connectivity using USB network adapters can be accomplished by using `/etc/network/interfaces` configuration stanzas (with DNS defined in `/etc/resolv.conf`).  Here is an example configuration file for a hypothetical USB network device thaty you can suit to taste and drop in `/etc/network/interfaces.d/eth0`:
+In host mode: plug it into a USB hub using the female-to-female adapter, then plug to the hub a DisplayLink monitor and a keyboard.  Optionally, plug a network card into the USB hub as well.  Then plug the power socket on the adapter, and watch the device boot onscreen.  If you did not specify an SSH public key to access the device when you built the image, you can now log in as root (the device will be password-free).  Network connectivity using USB network adapters can be accomplished by using `/etc/network/interfaces` configuration stanzas (with DNS defined in `/etc/resolv.conf`).  Here is an example configuration file for a hypothetical USB network device that you can suit to taste and drop in `/etc/network/interfaces.d/eth0`:
 
 ```
     auto eth0
