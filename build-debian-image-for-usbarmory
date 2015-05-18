@@ -117,27 +117,6 @@ else
   KEYFILE=
 fi
 
-export CHROOTDIR="$BUILDDIR"/"$DISTRO"
-test -d "$CHROOTDIR" || mkdir "$CHROOTDIR"
-export CHROOTBINDDIR=$( mktemp -d )
-mount --bind "$CHROOTDIR" "$CHROOTBINDDIR"
-test -d "$CHROOTDIR"/var || {
-  debootstrap --keyring="$SRCDIR/debian-archive-keyring.gpg" "$DISTRO" "$CHROOTBINDDIR"
-  cp -f /etc/resolv.conf "$CHROOTDIR"/etc
-}
-umount "$CHROOTBINDDIR"
-rmdir "$CHROOTBINDDIR"
-unset CHROOTBINDDIR
-
-chroot "$CHROOTDIR" dpkg -l | grep binutils-arm-linux-gnueabihf || {
-  chroot "$CHROOTDIR" apt-get update
-  chroot "$CHROOTDIR" apt-get install -y parted debootstrap binfmt-support qemu-user-static u-boot-tools wget git xz-utils tar
-  chroot "$CHROOTDIR" dpkg --add-architecture i386
-  chroot "$CHROOTDIR" apt-get update
-  chroot "$CHROOTDIR" apt-get install -y zlib1g-dev:i386 libstdc++6:i386 gcc-arm-none-eabi binutils-arm-linux-gnueabihf make gcc bc
-}
-
-
 pushd "$SRCDIR"
 test -d linux && {
   test -f $(basename "$linuxurl") && {
@@ -163,10 +142,29 @@ test -d u-boot && {
     tar -x -C u-boot --strip-components=1 -f $(basename "$ubooturl")
   }
 }
-rsync -rptlD "$SCRIPTDIR"/debian/* .
 rsync -rptlD "$SCRIPTDIR"/inversepath/* .
 rsync -rptlD "$SCRIPTDIR"/customized/* .
 popd
+
+export CHROOTDIR="$BUILDDIR"/"$DISTRO"
+test -d "$CHROOTDIR" || mkdir "$CHROOTDIR"
+export CHROOTBINDDIR=$( mktemp -d )
+mount --bind "$CHROOTDIR" "$CHROOTBINDDIR"
+test -d "$CHROOTDIR"/var || {
+  debootstrap --keyring="$SCRIPTDIR/debian/debian-archive-keyring.gpg" "$DISTRO" "$CHROOTBINDDIR"
+  cp -f /etc/resolv.conf "$CHROOTDIR"/etc
+}
+umount "$CHROOTBINDDIR"
+rmdir "$CHROOTBINDDIR"
+unset CHROOTBINDDIR
+
+chroot "$CHROOTDIR" dpkg -l | grep binutils-arm-linux-gnueabihf || {
+  chroot "$CHROOTDIR" apt-get update
+  chroot "$CHROOTDIR" apt-get install -y parted debootstrap binfmt-support qemu-user-static u-boot-tools wget git xz-utils tar
+  chroot "$CHROOTDIR" dpkg --add-architecture i386
+  chroot "$CHROOTDIR" apt-get update
+  chroot "$CHROOTDIR" apt-get install -y zlib1g-dev:i386 libstdc++6:i386 gcc-arm-none-eabi binutils-arm-linux-gnueabihf make gcc bc
+}
 
 
 rsync -rptlD --exclude=.git "$SRCDIR"/ "$CHROOTDIR"/usr/src/usbarmory/
