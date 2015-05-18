@@ -77,9 +77,19 @@ SSH host keys will also be absent during the very first phases of booting, becau
 
 To access the device, it depends on which mode you selected for the first boot during the build of the image.
 
-In host mode: plug it into a USB hub using the female-to-female adapter, then plug to the hub a DisplayLink monitor and a keyboard.  Optionally, plug a network card into the USB hub as well.  Then plug the power socket on the adapter, and watch the device boot onscreen.  If you did not specify an SSH public key to access the device when you built the image, you can now log in as root (the device will be password-free).
+In host mode: plug it into a USB hub using the female-to-female adapter, then plug to the hub a DisplayLink monitor and a keyboard.  Optionally, plug a network card into the USB hub as well.  Then plug the power socket on the adapter, and watch the device boot onscreen.  If you did not specify an SSH public key to access the device when you built the image, you can now log in as root (the device will be password-free).  Network connectivity using USB network adapters can be accomplished by using `/etc/network/interfaces` configuration stanzas (with DNS defined in `/etc/resolv.conf`).  Here is an example configuration file for a hypothetical USB network device thaty you can suit to taste and drop in `/etc/network/interfaces.d/eth0`:
 
-In device mode: plug it to your host computer.  Set up a static IP address `10.0.0.2/255.255.255.0` on the USB adapter that shows up on your computer after plugging in (`ip link` will show it).   Simply `ssh root@10.0.0.1` into the device.  If you did not an SSH public key to access the device when you built the image, this will log you in on the spot.  if you did not, you must have the private key corresponding to that public key in order to log in.  More (generic) information on how to connect to the device is available on the page https://github.com/inversepath/usbarmory/wiki/Host-communication -- specifically in the sections titled *Setup & Connection Sharing: Linux / Mac OS X* (the other sections are not relevant to this image).
+```
+    auto eth0
+    allow-hotplug eth0
+    iface eth0 inet static
+      hwaddress aa:bb:cc:dd:ee:ff
+      address 1.2.3.4
+      netmask 255.255.255.0
+      gateway 1.2.3.5
+```
+
+In device mode: plug it to your host computer.  Set up a static IP address `10.0.0.2/255.255.255.0` on the USB adapter that shows up on your computer after plugging in (`ip link` will show it).   Simply `ssh root@10.0.0.1` into the device.  If you did not an SSH public key to access the device when you built the image, this will log you in on the spot.  if you did not, you must have the private key corresponding to that public key in order to log in.  More (generic) information on how to connect to the device is available on the [Host communication page of the USB Armory wiki](https://github.com/inversepath/usbarmory/wiki/Host-communication) -- specifically in the sections titled *Setup & Connection Sharing: Linux / Mac OS X* (the other sections are not relevant to this image).
 
 The image of the device has no locales set up.  To set up a basic UTF-8 U.S. English locale, you can run as `root` on the device:
 

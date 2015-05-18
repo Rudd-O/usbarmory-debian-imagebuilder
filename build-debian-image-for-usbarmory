@@ -24,7 +24,8 @@
 # The kernel module options for g_multi are specified in
 # /lib/modprobe.d/g_multi.conf
 
-# Source configuration.
+# Source configuration.   These are the sources that will be downloaded,
+# verified, built and installed.
 linuxversion=${linuxversion-4.0}
 ubootversion=${ubootversion-2015.04}
 linuxurl=${linuxurl-https://www.kernel.org/pub/linux/kernel/v4.x/linux-$linuxversion.tar.xz}
@@ -32,7 +33,8 @@ linuxsum=${linuxsum-https://www.kernel.org/pub/linux/kernel/v4.x/linux-$linuxver
 ubooturl=${ubooturl-http://ftp.denx.de/pub/u-boot/u-boot-$ubootversion.tar.bz2}
 ubootsum=${ubootsum-0a1a70df586655f527befa6f12e184e96ed61b126e5a567382321b17200f5d60}
 
-# Network configuration.
+# Network configuration.  These parameters only apply when the USB Armory is
+# in device mode.  For host mode networking, refer to /etc/network/interfaces.
 nameserver1=${nameserver1-8.8.8.8}
 nameserver2=${nameserver2-8.8.4.4}
 devicemode_macaddr=${devicemode_macaddr-1a:55:89:a2:69:41}
