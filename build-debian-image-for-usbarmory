@@ -377,7 +377,7 @@ export ARCH=arm
 export parallelism=$( cat /proc/cpuinfo  | grep processor | wc -l )
 chroot "$CHROOTDIR" bash -c "
 pushd /usr/src/usbarmory
-cp my_usbarmory_linux.config linux/.config
+cp usbarmory_linux.config linux/.config
 cp imx53-usbarmory*dts* linux/arch/arm/boot/dts/
 mv linux/arch/arm/boot/dts/imx53-usbarmory-host.dts linux/arch/arm/boot/dts/imx53-usbarmory-host-nogpio.dts
 mv linux/arch/arm/boot/dts/imx53-usbarmory-host-gpio.dts linux/arch/arm/boot/dts/imx53-usbarmory-host.dts
