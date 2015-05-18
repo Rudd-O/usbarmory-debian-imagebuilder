@@ -94,7 +94,7 @@ In device mode: plug it to your host computer.  Set up a static IP address `10.0
 The image of the device has no locales set up.  To set up a basic UTF-8 U.S. English locale, you can run as `root` on the device:
 
 ```
-    echo en_US.UTF-8 UTF-8 >> locale.gen
+    echo en_US.UTF-8 UTF-8 >> /etc/locale.gen
     locale-gen
     update-locale LANG=en_US.UTF-8
 ```
