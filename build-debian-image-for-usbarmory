@@ -1,0 +1,441 @@
+#!/bin/bash
+
+# DOCUMENTATION
+# =============
+#
+# Kernel modules
+# ==============
+#
+# Images created by this program load three kernel modules on boot:
+#
+# 1. ledtrig_heartbeat
+# 2. ci_hdrc_imx
+# 3. g_multi
+#
+# The first two modules are loaded by way of:
+#
+# 1. /usr/lib/modules-load.d/ledtrig.conf
+# 2. /usr/lib/modules-load.d/ci_hdrc.conf
+#
+# The third module is loaded right after systemd-modules-load.service
+# by the unit file /etc/systemd/system/g_multi.service which is
+# enabled by default.
+#
+# The kernel module options for g_multi are specified in
+# /lib/modprobe.d/g_multi.conf
+
+linuxurl=https://www.kernel.org/pub/linux/kernel/v4.x/linux-4.0.tar.xz
+linuxsum=https://www.kernel.org/pub/linux/kernel/v4.x/linux-4.0.tar.sign
+ubooturl=http://ftp.denx.de/pub/u-boot/u-boot-2015.04.tar.bz2
+ubootsum=0a1a70df586655f527befa6f12e184e96ed61b126e5a567382321b17200f5d60
+
+cleanup() {
+  set +e
+  retval=
+  # Undo image setup
+  [ -z "$CHROOTBINDDIR" ] || {
+    umount "$CHROOTBINDDIR" || retval=$?
+    rmdir "$CHROOTBINDDIR" || retval=$?
+  }
+  [ -z "$CHROOTDIR" ] || {
+    umount "$CHROOTDIR"/proc/sys/fs/binfmt_misc || retval=$?
+    umount "$CHROOTDIR"/proc || retval=$?
+    umount "$CHROOTDIR"/"$TARGET_MNT" || retval=$?
+    sync
+  }
+  [ -z "$TARGET_DEV" ] || {
+    losetup -d "$TARGET_DEV" || retval=$?
+    sync
+  }
+  set -e
+  if [ "$1" == "final" ] ; then
+    return $retval
+  fi
+}
+
+trap cleanup ERR
+
+set -ex
+
+SRCDIR="$1"
+test -d $( dirname "$SRCDIR" ) || {
+  echo "error: directory for sources $SRCDIR does not exist" >&2
+  exit 64
+}
+shift
+
+SCRIPTDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+for a in \
+         customized/usbarmory_linux.config \
+         inversepath/usbarmory_linux.config \
+         inversepath/imx53-usbarmory-common.dtsi \
+         inversepath/imx53-usbarmory-gpio.dts \
+         inversepath/imx53-usbarmory-host.dts \
+         inversepath/imx53-usbarmory.dts \
+         debian/debian-archive-keyring.gpg \
+  ; do
+  test -e "$SCRIPTDIR/$a" || {
+    echo "error: file $SCRIPTDIR/$a expected but not found" >&2
+    exit 4
+  }
+done
+
+IMAGE="$1"
+test -d $( dirname "$IMAGE" ) || {
+  echo "error: directory for image file $IMAGE does not exist" >&2
+  exit 64
+}
+
+BUILDDIR="$2"
+test -d "$BUILDDIR" || {
+  echo "error: chroot directory for distribution $BUILDDIR does not exist" >&2
+  exit 64
+}
+
+DISTRO="$3"
+test -n "$DISTRO" || {
+  echo "error: the distribution must be specified as the fourth parameter" >&2
+  exit 64
+}
+export DISTRO
+shift
+
+INITIALMODE="$3"
+if [ "$INITIALMODE" != "device" -a "$INITIALMODE" != "host" ] ; then
+  echo "error: the initial mode ('host' or 'device') must be specified as the fifth parameter" >&2
+  exit 64
+fi
+export INITIALMODE
+
+if [ -n "$4" ] ; then
+  KEYFILE="$4"
+  test -f "$KEYFILE" || {
+    echo "error: the key file $KEYFILE specified does not exist" >&2
+    exit 64
+  }
+else
+  KEYFILE=
+fi
+
+export CHROOTDIR="$BUILDDIR"/"$DISTRO"
+test -d "$CHROOTDIR" || mkdir "$CHROOTDIR"
+export CHROOTBINDDIR=$( mktemp -d )
+mount --bind "$CHROOTDIR" "$CHROOTBINDDIR"
+test -d "$CHROOTDIR"/var || {
+  debootstrap --keyring="$SRCDIR/debian-archive-keyring.gpg" "$DISTRO" "$CHROOTBINDDIR"
+  cp -f /etc/resolv.conf "$CHROOTDIR"/etc
+}
+umount "$CHROOTBINDDIR"
+rmdir "$CHROOTBINDDIR"
+unset CHROOTBINDDIR
+
+chroot "$CHROOTDIR" dpkg -l | grep binutils-arm-linux-gnueabihf || {
+  chroot "$CHROOTDIR" apt-get update
+  chroot "$CHROOTDIR" apt-get install -y parted debootstrap binfmt-support qemu-user-static u-boot-tools wget git xz-utils tar
+  chroot "$CHROOTDIR" dpkg --add-architecture i386
+  chroot "$CHROOTDIR" apt-get update
+  chroot "$CHROOTDIR" apt-get install -y zlib1g-dev:i386 libstdc++6:i386 gcc-arm-none-eabi binutils-arm-linux-gnueabihf make gcc bc
+}
+
+
+pushd "$SRCDIR"
+test -d linux && {
+  test -f $(basename "$linuxurl") && {
+    linuxfile=$(basename "$linuxurl")
+    wget -c "$linuxurl"
+    wget -c "$linuxsum"
+    unxz "$linuxfile"
+    GNUPGHOME="$SCRIPTDIR"/linux gpg --verify $(basename "$linuxsum") || {
+      echo "error: the downloaded Linux sources do not match the signature." >&2
+      exit 37
+    }
+    tar xf "${linuxfile%.*}"
+    for a in linux-* ; do
+      if test -d "$a" ; then mv "$a" linux ; break ; fi
+    done
+  }
+}
+test -d u-boot && {
+  test -f $(basename "$ubooturl") && {
+    wget -c "$ubooturl" 
+    sum=$(sha256sum $(basename "$ubooturl") | cut -f 1 -d " ")
+    if [ "$sum" != "$ubootsum" ] ; then
+      echo "error: the downloaded U-Boot sources do not match the signature." >&2
+      exit 37
+    fi
+    tar xf $(basename "$ubooturl")
+    for a in u-boot* ; do
+      if test -d "$a" ; then mv "$a" u-boot ; break ; fi
+    done
+  }
+}
+rsync -rptlD "$SCRIPTDIR"/debian/* .
+rsync -rptlD "$SCRIPTDIR"/inversepath/* .
+rsync -rptlD "$SCRIPTDIR"/customized/* .
+popd
+
+
+rsync -rptlD --exclude=.git "$SRCDIR"/ "$CHROOTDIR"/usr/src/usbarmory/
+cp -f "$CHROOTDIR"/usr/src/usbarmory/imx53-usbarmory-host.dts "$CHROOTDIR"/usr/src/usbarmory/imx53-usbarmory-host-gpio.dts
+cat >> "$CHROOTDIR"/usr/src/usbarmory/imx53-usbarmory-host-gpio.dts <<EOF
+&iomuxc {
+	pinctrl-0 = <&pinctrl_pinheader>;
+};
+
+&uart1 {
+	status = "disabled";
+};
+EOF
+
+[ -f "$IMAGE" ] || {
+  truncate --size 4G "$IMAGE"
+}
+
+export TARGET_DEV=$(losetup -j "$IMAGE" | cut -d : -f 1)
+[ -n "$TARGET_DEV" ] || {
+  losetup -P --find --show "$IMAGE"
+  export TARGET_DEV=$(losetup -j "$IMAGE" | cut -d : -f 1)
+}
+
+[ -e "$TARGET_DEV"p1 ] || { 
+  parted "$TARGET_DEV" --script mklabel msdos
+  parted "$TARGET_DEV" --script mkpart primary ext4 5M 100%
+  mkfs.ext4 "$TARGET_DEV"p1
+}
+
+mkdir -p "$CHROOTDIR"/mnt/image
+mountpoint "$CHROOTDIR"/mnt/image || {
+  mount -t ext4 "$TARGET_DEV"p1 "$CHROOTDIR"/mnt/image
+}
+export TARGET_MNT=/mnt/image
+
+export CROSS_COMPILE=arm-none-eabi-
+chroot "$CHROOTDIR" mountpoint /proc || {
+  chroot "$CHROOTDIR" mount -t proc proc /proc
+  chroot "$CHROOTDIR" /etc/init.d/binfmt-support start
+}
+[ -e "$CHROOTDIR"/"$TARGET_MNT"/lib/systemd/systemd ] || {
+  chroot "$CHROOTDIR" mkdir -p "$TARGET_MNT"/usr/share/keyrings
+  cp -f "$CHROOTDIR"/usr/share/keyrings/*.gpg "$CHROOTDIR"/"$TARGET_MNT"/usr/share/keyrings
+  chroot "$CHROOTDIR" qemu-debootstrap --arch=armhf --include=ssh,sudo,chrony,fake-hwclock,openssl,vim,nano,cryptsetup,locales,less,cpufrequtils,usbutils "$DISTRO" "$TARGET_MNT" http://ftp.debian.org/debian/
+}
+
+chroot "$CHROOTDIR" grep updates "$TARGET_MNT"/etc/apt/sources.list || {
+  release=$(chroot "$CHROOTDIR" cat "$TARGET_MNT"/etc/apt/sources.list | head -1  | awk ' { print $3 } ')
+  echo deb http://ftp.debian.org/debian $release-updates main >> "$CHROOTDIR"/"$TARGET_MNT"/etc/apt/sources.list
+  echo deb http://security.debian.org $release/updates main >> "$CHROOTDIR"/"$TARGET_MNT"/etc/apt/sources.list
+  chroot "$CHROOTDIR" chroot "$TARGET_MNT" apt-get update
+  chroot "$CHROOTDIR" chroot "$TARGET_MNT" apt-get -y upgrade
+  chroot "$CHROOTDIR" chroot "$TARGET_MNT" apt-get install -y python
+}
+
+# Create fstab.
+echo "/dev/mmcblk0p1 / ext4 defaults,noatime 1 1" > "$CHROOTDIR"/"$TARGET_MNT"/etc/fstab
+
+# Set the system to boot as multi-user, not graphical.
+ln -sf /lib/systemd/system/multi-user.target "$CHROOTDIR"/"$TARGET_MNT"/etc/systemd/system/default.target
+
+# Customize SSH to do the right thing.
+rm -f "$CHROOTDIR"/"$TARGET_MNT"/etc/ssh/ssh_host*
+cat > "$CHROOTDIR"/"$TARGET_MNT"/usr/bin/ssh-gen-host-keys <<"HEREDOC"
+#!/bin/bash -e
+FILES=$(ls /etc/ssh/ssh_host_* 2> /dev/null | wc -l)
+if [ "$FILES" != "0" ]; then exit ; fi
+
+# Create the host keys for the OpenSSH server.
+#
+
+# Some functions to make the below more readable
+KEYGEN=/usr/bin/ssh-keygen
+RSA_KEY=/etc/ssh/ssh_host_rsa_key
+ECDSA_KEY=/etc/ssh/ssh_host_ecdsa_key
+
+do_rsa_keygen() {
+	if [ ! -s $RSA_KEY ]; then
+		echo -n "Generating SSH2 RSA host key: "
+		rm -f $RSA_KEY
+		if test ! -f $RSA_KEY && $KEYGEN -q -t rsa -f $RSA_KEY -C '' -N '' >&/dev/null; then
+			chmod 600 $RSA_KEY
+			chmod 644 $RSA_KEY.pub
+			if [ -x /sbin/restorecon ]; then
+			    /sbin/restorecon $RSA_KEY.pub
+			fi
+			echo "Success in RSA key generation"
+		else
+			echo "Failure in RSA key generation"
+			exit 1
+		fi
+	fi
+}
+
+do_ecdsa_keygen() {
+	if [ ! -s $ECDSA_KEY ]; then
+		echo -n "Generating SSH2 ECDSA host key: "
+		rm -f $ECDSA_KEY
+		if test ! -f $ECDSA_KEY && $KEYGEN -q -t ecdsa -f $ECDSA_KEY -C '' -N '' >&/dev/null; then
+			chmod 600 $ECDSA_KEY
+			chmod 644 $ECDSA_KEY.pub
+			if [ -x /sbin/restorecon ]; then
+			    /sbin/restorecon $ECDSA_KEY.pub
+			fi
+			echo "Success in ECDSA key generation"
+		else
+			echo "Failure in ECDSA key generation"
+			exit 1
+		fi
+	fi
+}
+
+# Create keys if necessary
+do_rsa_keygen
+do_ecdsa_keygen
+
+HEREDOC
+chmod +x "$CHROOTDIR"/"$TARGET_MNT"/usr/bin/ssh-gen-host-keys
+cat > "$CHROOTDIR"/"$TARGET_MNT"/etc/systemd/system/ssh-gen-host-keys.service <<HEREDOC
+[Unit]
+Description=Generate SSH host keys
+Before=ssh.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/ssh-gen-host-keys
+
+[Install]
+WantedBy=multi-user.target
+HEREDOC
+chroot "$CHROOTDIR" chroot "$TARGET_MNT" systemctl enable ssh-gen-host-keys.service
+
+if chroot "$CHROOTDIR" grep UseDNS "$TARGET_MNT"/etc/ssh/sshd_config ; then
+  sed -i 's/^UseDNS.*/UseDNS no/g' "$CHROOTDIR"/"$TARGET_MNT"/etc/ssh/sshd_config
+else
+  echo "UseDNS no" >> "$CHROOTDIR"/"$TARGET_MNT"/etc/ssh/sshd_config
+fi
+
+# We are disabling the journal on disk to prevent the system
+# from ruining the MMC SD card.
+# chroot "$CHROOTDIR" mkdir -p "$TARGET_MNT"/var/log/journal
+
+# Remove machine ID and ensure it is generated on next boot.
+rm -f "$CHROOTDIR"/"$TARGET_MNT"/etc/machine-id
+cat > "$CHROOTDIR"/"$TARGET_MNT"/etc/systemd/system/systemd-machine-id-setup.service <<HEREDOC
+[Unit]
+Description=Generate machine ID
+ConditionPathExists=!/etc/machine-id
+Before=sysinit.target
+After=systemd-remount-fs.service
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/systemd-machine-id-setup
+
+[Install]
+WantedBy=sysinit.target
+HEREDOC
+chroot "$CHROOTDIR" chroot "$TARGET_MNT" systemctl enable systemd-machine-id-setup.service
+
+echo "ledtrig_heartbeat" > "$CHROOTDIR"/"$TARGET_MNT"/usr/lib/modules-load.d/ledtrig.conf
+echo "ci_hdrc_imx" > "$CHROOTDIR"/"$TARGET_MNT"/usr/lib/modules-load.d/ci_hdrc.conf
+mkdir -p "$CHROOTDIR"/"$TARGET_MNT"/lib/modprobe.d
+echo "options g_multi dev_addr=1a:55:89:a2:69:41 host_addr=1a:55:89:a2:69:42 removable=1 ro=1" > \
+     "$CHROOTDIR"/"$TARGET_MNT"/lib/modprobe.d/g_multi.conf
+cat > "$CHROOTDIR"/"$TARGET_MNT"/etc/systemd/system/g_multi.service <<HEREDOC
+[Unit]
+Description=Load the g_multi kernel module
+After=systemd-modules-load.service
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash -c 'test -e /sys/bus/usb/devices/usb1 || /sbin/modprobe g_multi'
+
+[Install]
+WantedBy=multi-user.target
+HEREDOC
+chroot "$CHROOTDIR" chroot "$TARGET_MNT" systemctl enable g_multi.service
+
+echo 'allow-hotplug usb0
+iface usb0 inet static
+  hwaddress 1a:55:89:a2:69:41
+  address 10.0.0.1
+  netmask 255.255.255.0
+  gateway 10.0.0.2
+' > "$CHROOTDIR"/"$TARGET_MNT"/etc/network/interfaces.d/usb0
+
+echo "usbarmory" > "$CHROOTDIR"/"$TARGET_MNT"/etc/hostname
+
+chroot "$CHROOTDIR" chroot "$TARGET_MNT" update-rc.d networking enable
+
+if [ -n "$KEYFILE" ] ; then
+  mkdir -p "$CHROOTDIR"/"$TARGET_MNT"/root/.ssh
+  chmod 700 "$CHROOTDIR"/"$TARGET_MNT"/root/.ssh
+  cp -f "$KEYFILE" "$CHROOTDIR"/"$TARGET_MNT"/root/.ssh/authorized_keys
+  chmod 600 "$CHROOTDIR"/"$TARGET_MNT"/root/.ssh/authorized_keys
+else
+  chroot "$CHROOTDIR" chroot "$TARGET_MNT" passwd --delete root
+fi
+
+# Compile the kernel and bootloader now.
+export ARCH=arm
+export parallelism=$( cat /proc/cpuinfo  | grep processor | wc -l )
+chroot "$CHROOTDIR" bash -c "
+pushd /usr/src/usbarmory
+cp my_usbarmory_linux.config linux/.config
+cp imx53-usbarmory*dts* linux/arch/arm/boot/dts/
+mv linux/arch/arm/boot/dts/imx53-usbarmory-host.dts linux/arch/arm/boot/dts/imx53-usbarmory-host-nogpio.dts
+mv linux/arch/arm/boot/dts/imx53-usbarmory-host-gpio.dts linux/arch/arm/boot/dts/imx53-usbarmory-host.dts
+popd
+pushd /usr/src/usbarmory/linux
+make -j\"$parallelism\" uImage LOADADDR=0x70008000 modules \
+    imx53-usbarmory.dtb imx53-usbarmory-gpio.dtb imx53-usbarmory-host.dtb
+cp arch/arm/boot/uImage \"$TARGET_MNT\"/boot/
+cp arch/arm/boot/dts/imx53-usbarmory.dtb \"$TARGET_MNT\"/boot/imx53-usbarmory.dtb
+cp arch/arm/boot/dts/imx53-usbarmory.dtb \"$TARGET_MNT\"/boot/imx53-usbarmory-device.dtb
+cp arch/arm/boot/dts/imx53-usbarmory-gpio.dtb \"$TARGET_MNT\"/boot/imx53-usbarmory-gpio.dtb
+cp arch/arm/boot/dts/imx53-usbarmory-host.dtb \"$TARGET_MNT\"/boot/imx53-usbarmory-host-gpio.dtb
+mv arch/arm/boot/dts/imx53-usbarmory-host.dts arch/arm/boot/dts/imx53-usbarmory-host-gpio.dts
+mv arch/arm/boot/dts/imx53-usbarmory-host-nogpio.dts arch/arm/boot/dts/imx53-usbarmory-host.dts
+touch arch/arm/boot/dts/imx53-usbarmory-host.dts # Refresh timestamp to get recompilation.
+make -j\"$parallelism\" LOADADDR=0x70008000 \
+    imx53-usbarmory-host.dtb
+cp arch/arm/boot/dts/imx53-usbarmory-host.dtb \"$TARGET_MNT\"/boot/imx53-usbarmory-host.dtb
+make INSTALL_MOD_PATH=\"$TARGET_MNT\" ARCH=arm modules_install
+popd
+
+pushd /usr/src/usbarmory/u-boot
+test -f u-boot.imx || {
+  sed 's/rootwait rw/rootwait ro/' -i include/configs/usbarmory.h
+  make distclean
+  make usbarmory_config
+  make ARCH=arm
+}
+popd
+"
+
+# Enable device mode switchers.
+echo "#!/bin/bash
+cp -f /boot/imx53-usbarmory-host.dtb /boot/imx53-usbarmory.dtb
+" > "$CHROOTDIR"/"$TARGET_MNT"/usr/local/bin/hostmode
+chmod +x "$CHROOTDIR"/"$TARGET_MNT"/usr/local/bin/hostmode
+
+echo "#!/bin/bash
+cp -f /boot/imx53-usbarmory-device.dtb /boot/imx53-usbarmory.dtb
+" > "$CHROOTDIR"/"$TARGET_MNT"/usr/local/bin/devicemode
+chmod +x "$CHROOTDIR"/"$TARGET_MNT"/usr/local/bin/devicemode
+
+# Switch mode to host if requested by user.
+if [ "$INITIALMODE" == "host" ] ; then
+  chroot "$CHROOTDIR" chroot "$TARGET_MNT" /usr/local/bin/hostmode
+fi
+
+chroot "$CHROOTDIR" fstrim -v "$TARGET_MNT"
+
+# Install bootloader
+dd if="$CHROOTDIR"/usr/src/usbarmory/u-boot/u-boot.imx of="$TARGET_DEV" bs=512 seek=2 conv=fsync
+sync
+
+cleanup final
