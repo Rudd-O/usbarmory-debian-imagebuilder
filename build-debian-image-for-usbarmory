@@ -209,7 +209,7 @@ chroot "$CHROOTDIR" mountpoint /proc || {
 [ -e "$CHROOTDIR"/"$TARGET_MNT"/lib/systemd/systemd ] || {
   chroot "$CHROOTDIR" mkdir -p "$TARGET_MNT"/usr/share/keyrings
   cp -f "$CHROOTDIR"/usr/share/keyrings/*.gpg "$CHROOTDIR"/"$TARGET_MNT"/usr/share/keyrings
-  chroot "$CHROOTDIR" qemu-debootstrap --arch=armhf --include=ssh,sudo,chrony,fake-hwclock,openssl,vim,nano,cryptsetup,locales,less,cpufrequtils,usbutils "$DISTRO" "$TARGET_MNT" http://ftp.debian.org/debian/
+  chroot "$CHROOTDIR" qemu-debootstrap --arch=armhf --include=ssh,sudo,chrony,fake-hwclock,openssl,vim,nano,cryptsetup,locales,less,cpufrequtils,usbutils,haveged "$DISTRO" "$TARGET_MNT" http://ftp.debian.org/debian/
 }
 
 chroot "$CHROOTDIR" grep updates "$TARGET_MNT"/etc/apt/sources.list || {
