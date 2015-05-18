@@ -13,6 +13,7 @@ As root:
 1. Check this project out using Git in a folder on your computer.
 2. Create a source directory where build sources will be integrated.
    * At this point, you can optionally provision your own kernel sources, by placing a Linux source tree in a `linux` subdirectory of this source directory.   Make sure those sources correspond to Linux 4.0 or later.
+   * The same applies to U-Boot -- you can provision your U-Boot sources in a subdirectory `u-boot` within the source directory.  Make sure those sources correspond to U-Boot 2015.04 or later.
 3. Create a build directory where build products will be staged.
 4. Run the following command:
 
