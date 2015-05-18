@@ -149,10 +149,7 @@ test -d linux && {
       echo "error: the downloaded Linux sources do not match the signature." >&2
       exit 37
     }
-    tar xf "${linuxfile%.*}"
-    for a in linux-* ; do
-      if test -d "$a" ; then mv "$a" linux ; break ; fi
-    done
+    tar -x -C linux --strip-components=1 -f "${linuxfile%.*}"
   }
 }
 test -d u-boot && {
@@ -163,10 +160,7 @@ test -d u-boot && {
       echo "error: the downloaded U-Boot sources do not match the signature." >&2
       exit 37
     fi
-    tar xf $(basename "$ubooturl")
-    for a in u-boot* ; do
-      if test -d "$a" ; then mv "$a" u-boot ; break ; fi
-    done
+    tar -x -C u-boot --strip-components=1 -f $(basename "$ubooturl")
   }
 }
 rsync -rptlD "$SCRIPTDIR"/debian/* .
