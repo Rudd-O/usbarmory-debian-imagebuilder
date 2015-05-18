@@ -44,7 +44,7 @@ cleanup() {
     sync
   }
   [ -z "$TARGET_DEV" ] || {
-    losetup -d -- "$TARGET_DEV" || retval=$?
+    losetup -d "$TARGET_DEV" || retval=$?
     sync
   }
   set -e
@@ -183,10 +183,10 @@ EOF
   truncate --size 4GB -- "$IMAGE"
 }
 
-export TARGET_DEV=$(losetup -j -- "$IMAGE" | cut -d : -f 1)
+export TARGET_DEV=$(losetup -j "$IMAGE" | cut -d : -f 1)
 [ -n "$TARGET_DEV" ] || {
   losetup -P --find --show -- "$IMAGE"
-  export TARGET_DEV=$(losetup -j -- "$IMAGE" | cut -d : -f 1)
+  export TARGET_DEV=$(losetup -j "$IMAGE" | cut -d : -f 1)
 }
 
 [ -e "$TARGET_DEV"p1 ] || { 
