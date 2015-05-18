@@ -55,6 +55,8 @@ The parameters are:
 
 There are a number of overridable environment variables at the top of the script.  You can prefix the command line that runs the script with variable definitions of the form `variable=value` to override those values, thus avoiding having to modify the script in order to change those values.  Always make sure to run this program in a sanitized environment so that variables injected by potential attackers cannot modify the behavior of this program.
 
+The program will download the necessary sources from the Internet (unless you have provided those sources manually) and then proceed to verify that the signatures of the downloaded sources are valid.  At no point is unverified software installed or executed in your computer.
+
 After setup is done, you can use `dd` to transfer the image(s) to the appropriate media for booting (which must be minimum 4 GB in size).  See below for examples and more information.
 
 Transferring the images to media
