@@ -140,7 +140,7 @@ Troubleshooting using the console
 
 An USB to TTL cable, hooked to the appropriate header pinouts on the board, will show you the device's console as it boots.  Run `minicom -D /dev/ttyUSB0` on your host computer after plugging the USB to TTL cable to your host computer.  Then you can connect the USB Armory to the cable's pins.  You'll see the console start in a few seconds.
 
-The pinout for your USB Armory is detailed on page https://github.com/inversepath/usbarmory/wiki/GPIOs .  A breakdown of those pins:
+The pinout for your USB Armory is detailed [on the GPIO page of the USB Armory wiki](https://github.com/inversepath/usbarmory/wiki/GPIOs).  A breakdown of those pins:
 
 * Pin 1 (squarish looking) goes to ground.
 * Pin 2 goes to USB +5V
