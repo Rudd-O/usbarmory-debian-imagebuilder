@@ -29,6 +29,10 @@ linuxsum=https://www.kernel.org/pub/linux/kernel/v4.x/linux-4.0.tar.sign
 ubooturl=http://ftp.denx.de/pub/u-boot/u-boot-2015.04.tar.bz2
 ubootsum=0a1a70df586655f527befa6f12e184e96ed61b126e5a567382321b17200f5d60
 
+# Network configuration.
+nameserver1=8.8.8.8
+nameserver2=8.8.4.4
+
 cleanup() {
   set +e
   retval=
@@ -360,6 +364,10 @@ iface usb0 inet static
 ' > "$CHROOTDIR"/"$TARGET_MNT"/etc/network/interfaces.d/usb0
 
 echo "usbarmory" > "$CHROOTDIR"/"$TARGET_MNT"/etc/hostname
+echo -n "" > "$CHROOTDIR"/"$TARGET_MNT"/etc/resolv.conf
+if [ -n "$nameserver1" ] ; then echo "nameserver $nameserver1" > "$CHROOTDIR"/"$TARGET_MNT"/etc/resolv.conf ; fi
+if [ -n "$nameserver2" ] ; then echo "nameserver $nameserver2" >> "$CHROOTDIR"/"$TARGET_MNT"/etc/resolv.conf ; fi
+chmod 644 "$CHROOTDIR"/"$TARGET_MNT"/etc/resolv.conf
 
 chroot -- "$CHROOTDIR" chroot -- "$TARGET_MNT" update-rc.d networking enable
 
