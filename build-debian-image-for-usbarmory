@@ -180,7 +180,7 @@ cat >> "$CHROOTDIR"/usr/src/usbarmory/imx53-usbarmory-host-gpio.dts <<EOF
 EOF
 
 [ -f "$IMAGE" ] || {
-  truncate --size 4G "$IMAGE"
+  truncate --size 4GB "$IMAGE"
 }
 
 export TARGET_DEV=$(losetup -j "$IMAGE" | cut -d : -f 1)
@@ -376,6 +376,7 @@ fi
 export ARCH=arm
 export parallelism=$( cat /proc/cpuinfo  | grep processor | wc -l )
 chroot "$CHROOTDIR" bash -c "
+set -ex
 pushd /usr/src/usbarmory
 cp usbarmory_linux.config linux/.config
 cp imx53-usbarmory*dts* linux/arch/arm/boot/dts/
