@@ -53,6 +53,7 @@ These are the programs you need to execute this script:
 * sha256sum
 * tar
 * xz
+* bzip2
 
 Transferring the images to media
 --------------------------------
