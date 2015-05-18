@@ -1,7 +1,7 @@
 USB Armory Debian Jessie image creator
 ======================================
 
-This script will create an image file containing a fresh, minimal Debian Jessie installation.  This image can be written directly to a microSD card that then can be inserted in your USB Armory, and the USB Armory booted.  This program can run on a Fedora workstation or server, provided that the `debootstrap` program is installed, as well as a few other utilities (see below).
+This script will create an image file containing a fresh, minimal Debian Jessie installation.  The built image can be written directly to a microSD card that then can be inserted in your USB Armory, and the USB Armory booted.  This program can run on a Fedora workstation or server, provided that the `debootstrap` program is installed, as well as a few other utilities (see below).  An image built by this program is mostly compatible with the instructions presented by the USB Armory wiki.
 
 See below for usage instructions.
 
@@ -53,7 +53,7 @@ The parameters are:
    * Device mode will boot in a mode that is compatible with operation as a USB device connected to a computer.
 * path to SSH public key file: if specified (this is optional), then the contents of this file will be embedded into the `root` user SSH authorized keys database, thereby ensuring that only the possessor of the corresponding private key can SSH into the USB Armory.  If this file is not specified, then the `root` user password will be blank and you will be able to SSH into the device directly.
 
-After setup is done, you can use `dd` to transfer the image(s) to the appropriate media for booting.  See below for examples and more information.
+After setup is done, you can use `dd` to transfer the image(s) to the appropriate media for booting (which must be minimum 4 GB in size).  See below for examples and more information.
 
 Transferring the images to media
 --------------------------------
@@ -94,6 +94,8 @@ Once you have booted your USB Armory device and successfully logged into it, you
 2. Rebooting the device.
 3. Using `resize2fs` on the block device `/dev/mmcblk0p1`.
 
+Alternatively, you can create another partition on the trailing unallocated space of your MMC block device, and mount them through `/etc/fstab` or expose them to the host operating system (see below).  Remember to reboot after creating new partitions.
+
 Switching between host mode and device mode
 -------------------------------------------
 
@@ -102,6 +104,9 @@ The image ships with device tree files for host mode (makes the device into a re
 To switch to host mode when in device mode, while logged in as `root`, run the command `/usr/local/bin/hostmode`.  Then reboot the device.  This makes the device able to plug into a USB hub with its USB female-to-female adapter, and you can plug monitors, network devices, mice and keyboards to your USB hub.
 
 To switch to device mode when in host mode, while logged in as `root`, run the command `/usr/local/bin/devicemode`.  Then reboot the device.  This makes the device appear as a combination serial device, network device and USB mass storage device.
+
+Taking advantage of USB mass storage emulation in device mode
+-------------------------------------------------------------
 
 When logged into the USB Armory running in device mode, you can expose a block device to the host computer by running the following code:
 
@@ -113,6 +118,8 @@ When logged into the USB Armory running in device mode, you can expose a block d
 This causes said block device to be "plugged into" your host computer.  Echoing the empty string to that control file causes the block device to be "unplugged from" your host computer.
 
 Under no circumstances should you echo the path of the root volume block device to that sysfs control file, because that will cause corruption of your USB Armory's root volume.
+
+This feature works thanks to the magic of `g_multi.service`, which detects device mode and loads the `g_multi` kernel module, with the appropriate parameters to make USB mass storage work.
 
 Troubleshooting using the console
 ---------------------------------
