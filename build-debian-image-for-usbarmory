@@ -142,8 +142,8 @@ test -d u-boot && {
     tar -x -C u-boot --strip-components=1 -f $(basename "$ubooturl")
   }
 }
-rsync -rptlD "$SCRIPTDIR"/inversepath/* .
-rsync -rptlD "$SCRIPTDIR"/customized/* .
+rsync -rptlD --exclude=.git "$SCRIPTDIR"/inversepath/* .
+rsync -rptlD --exclude=.git "$SCRIPTDIR"/customized/* .
 popd
 
 export CHROOTDIR="$BUILDDIR"/"$DISTRO"
