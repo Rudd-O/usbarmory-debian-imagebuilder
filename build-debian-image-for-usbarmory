@@ -219,6 +219,7 @@ chroot "$CHROOTDIR" grep updates "$TARGET_MNT"/etc/apt/sources.list || {
   chroot "$CHROOTDIR" chroot "$TARGET_MNT" apt-get update
   chroot "$CHROOTDIR" chroot "$TARGET_MNT" apt-get -y upgrade
   chroot "$CHROOTDIR" chroot "$TARGET_MNT" apt-get install -y python
+  chroot "$CHROOTDIR" chroot "$TARGET_MNT" apt-get clean
 }
 
 # Create fstab.
