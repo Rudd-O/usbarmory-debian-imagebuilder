@@ -16,7 +16,7 @@ As root:
 3. Create a build directory where build products will be staged.
 4. Run the following command:
 
-
+```
     path/to/usbarmory-debian-builder/build-debian-image-for-usbarmory \
         <SOURCEDIR>   \
         <IMAGEFILE>   \
@@ -24,7 +24,7 @@ As root:
         <DISTRO>      \
         host | device \
         [ path to SSH public key file ]
-
+```
 
 The parameters are:
 
