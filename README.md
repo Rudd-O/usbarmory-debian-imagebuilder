@@ -5,6 +5,21 @@ This script will create an image file containing a fresh, minimal Debian Jessie 
 
 See below for usage instructions.
 
+Requirements
+------------
+
+These are the programs you need to execute this script:
+
+* debootstrap
+* GnuPG (`gpg`)
+* GNU wget
+* rsync
+* parted
+* sha256sum
+* tar
+* xz
+* bzip2
+
 Usage
 -----
 
@@ -39,21 +54,6 @@ The parameters are:
 * path to SSH public key file: if specified (this is optional), then the contents of this file will be embedded into the `root` user SSH authorized keys database, thereby ensuring that only the possessor of the corresponding private key can SSH into the USB Armory.  If this file is not specified, then the `root` user password will be blank and you will be able to SSH into the device directly.
 
 After setup is done, you can use `dd` to transfer the image(s) to the appropriate media for booting.  See below for examples and more information.
-
-Requirements
-------------
-
-These are the programs you need to execute this script:
-
-* debootstrap
-* GnuPG (`gpg`)
-* GNU wget
-* rsync
-* parted
-* sha256sum
-* tar
-* xz
-* bzip2
 
 Transferring the images to media
 --------------------------------
