@@ -34,17 +34,17 @@ cleanup() {
   retval=
   # Undo image setup
   [ -z "$CHROOTBINDDIR" ] || {
-    umount "$CHROOTBINDDIR" || retval=$?
-    rmdir "$CHROOTBINDDIR" || retval=$?
+    umount -- "$CHROOTBINDDIR" || retval=$?
+    rmdir -- "$CHROOTBINDDIR" || retval=$?
   }
   [ -z "$CHROOTDIR" ] || {
-    umount "$CHROOTDIR"/proc/sys/fs/binfmt_misc || retval=$?
-    umount "$CHROOTDIR"/proc || retval=$?
-    umount "$CHROOTDIR"/"$TARGET_MNT" || retval=$?
+    umount -- "$CHROOTDIR"/proc/sys/fs/binfmt_misc || retval=$?
+    umount -- "$CHROOTDIR"/proc || retval=$?
+    umount -- "$CHROOTDIR"/"$TARGET_MNT" || retval=$?
     sync
   }
   [ -z "$TARGET_DEV" ] || {
-    losetup -d "$TARGET_DEV" || retval=$?
+    losetup -d -- "$TARGET_DEV" || retval=$?
     sync
   }
   set -e
@@ -81,14 +81,14 @@ for a in \
 done
 
 IMAGE="$1"
-test -d $( dirname "$IMAGE" ) || {
+test -d $( dirname -- "$IMAGE" ) || {
   echo "error: directory for image file $IMAGE does not exist" >&2
   exit 64
 }
 
 BUILDDIR="$2"
 test -d "$BUILDDIR" || {
-  echo "error: chroot directory for distribution $BUILDDIR does not exist" >&2
+  echo "error: chroot -- directory for distribution $BUILDDIR does not exist" >&2
   exit 64
 }
 
@@ -142,33 +142,33 @@ test -d u-boot && {
     tar -x -C u-boot --strip-components=1 -f $(basename "$ubooturl")
   }
 }
-rsync -rptlD --exclude=.git "$SCRIPTDIR"/inversepath/* .
-rsync -rptlD --exclude=.git "$SCRIPTDIR"/customized/* .
+rsync -rptlD --exclude=.git -- "$SCRIPTDIR"/inversepath/* .
+rsync -rptlD --exclude=.git -- "$SCRIPTDIR"/customized/* .
 popd
 
 export CHROOTDIR="$BUILDDIR"/"$DISTRO"
-test -d "$CHROOTDIR" || mkdir "$CHROOTDIR"
+test -d "$CHROOTDIR" || mkdir -- "$CHROOTDIR"
 export CHROOTBINDDIR=$( mktemp -d )
 mount --bind "$CHROOTDIR" "$CHROOTBINDDIR"
 test -d "$CHROOTDIR"/var || {
   debootstrap --keyring="$SCRIPTDIR/debian/debian-archive-keyring.gpg" "$DISTRO" "$CHROOTBINDDIR"
-  cp -f /etc/resolv.conf "$CHROOTDIR"/etc
+  cp -f -- /etc/resolv.conf "$CHROOTDIR"/etc
 }
-umount "$CHROOTBINDDIR"
-rmdir "$CHROOTBINDDIR"
+umount -- "$CHROOTBINDDIR"
+rmdir -- "$CHROOTBINDDIR"
 unset CHROOTBINDDIR
 
-chroot "$CHROOTDIR" dpkg -l | grep binutils-arm-linux-gnueabihf || {
-  chroot "$CHROOTDIR" apt-get update
-  chroot "$CHROOTDIR" apt-get install -y parted debootstrap binfmt-support qemu-user-static u-boot-tools wget git xz-utils tar
-  chroot "$CHROOTDIR" dpkg --add-architecture i386
-  chroot "$CHROOTDIR" apt-get update
-  chroot "$CHROOTDIR" apt-get install -y zlib1g-dev:i386 libstdc++6:i386 gcc-arm-none-eabi binutils-arm-linux-gnueabihf make gcc bc
+chroot -- "$CHROOTDIR" dpkg -l | grep binutils-arm-linux-gnueabihf || {
+  chroot -- "$CHROOTDIR" apt-get update
+  chroot -- "$CHROOTDIR" apt-get install -y parted debootstrap binfmt-support qemu-user-static u-boot-tools wget git xz-utils tar
+  chroot -- "$CHROOTDIR" dpkg --add-architecture i386
+  chroot -- "$CHROOTDIR" apt-get update
+  chroot -- "$CHROOTDIR" apt-get install -y zlib1g-dev:i386 libstdc++6:i386 gcc-arm-none-eabi binutils-arm-linux-gnueabihf make gcc bc
 }
 
 
-rsync -rptlD --exclude=.git "$SRCDIR"/ "$CHROOTDIR"/usr/src/usbarmory/
-cp -f "$CHROOTDIR"/usr/src/usbarmory/imx53-usbarmory-host.dts "$CHROOTDIR"/usr/src/usbarmory/imx53-usbarmory-host-gpio.dts
+rsync -rptlD --exclude=.git -- "$SRCDIR"/ "$CHROOTDIR"/usr/src/usbarmory/
+cp -f -- "$CHROOTDIR"/usr/src/usbarmory/imx53-usbarmory-host.dts "$CHROOTDIR"/usr/src/usbarmory/imx53-usbarmory-host-gpio.dts
 cat >> "$CHROOTDIR"/usr/src/usbarmory/imx53-usbarmory-host-gpio.dts <<EOF
 &iomuxc {
 	pinctrl-0 = <&pinctrl_pinheader>;
@@ -180,13 +180,13 @@ cat >> "$CHROOTDIR"/usr/src/usbarmory/imx53-usbarmory-host-gpio.dts <<EOF
 EOF
 
 [ -f "$IMAGE" ] || {
-  truncate --size 4GB "$IMAGE"
+  truncate --size 4GB -- "$IMAGE"
 }
 
-export TARGET_DEV=$(losetup -j "$IMAGE" | cut -d : -f 1)
+export TARGET_DEV=$(losetup -j -- "$IMAGE" | cut -d : -f 1)
 [ -n "$TARGET_DEV" ] || {
-  losetup -P --find --show "$IMAGE"
-  export TARGET_DEV=$(losetup -j "$IMAGE" | cut -d : -f 1)
+  losetup -P --find --show -- "$IMAGE"
+  export TARGET_DEV=$(losetup -j -- "$IMAGE" | cut -d : -f 1)
 }
 
 [ -e "$TARGET_DEV"p1 ] || { 
@@ -197,39 +197,39 @@ export TARGET_DEV=$(losetup -j "$IMAGE" | cut -d : -f 1)
 
 mkdir -p "$CHROOTDIR"/mnt/image
 mountpoint "$CHROOTDIR"/mnt/image || {
-  mount -t ext4 "$TARGET_DEV"p1 "$CHROOTDIR"/mnt/image
+  mount -t ext4 -- "$TARGET_DEV"p1 "$CHROOTDIR"/mnt/image
 }
 export TARGET_MNT=/mnt/image
 
 export CROSS_COMPILE=arm-none-eabi-
-chroot "$CHROOTDIR" mountpoint /proc || {
-  chroot "$CHROOTDIR" mount -t proc proc /proc
-  chroot "$CHROOTDIR" /etc/init.d/binfmt-support start
+chroot -- "$CHROOTDIR" mountpoint /proc || {
+  chroot -- "$CHROOTDIR" mount -t proc proc /proc
+  chroot -- "$CHROOTDIR" /etc/init.d/binfmt-support start
 }
 [ -e "$CHROOTDIR"/"$TARGET_MNT"/lib/systemd/systemd ] || {
-  chroot "$CHROOTDIR" mkdir -p "$TARGET_MNT"/usr/share/keyrings
-  cp -f "$CHROOTDIR"/usr/share/keyrings/*.gpg "$CHROOTDIR"/"$TARGET_MNT"/usr/share/keyrings
-  chroot "$CHROOTDIR" qemu-debootstrap --arch=armhf --include=ssh,sudo,chrony,fake-hwclock,openssl,vim,nano,cryptsetup,locales,less,cpufrequtils,usbutils,haveged "$DISTRO" "$TARGET_MNT" http://ftp.debian.org/debian/
+  chroot -- "$CHROOTDIR" mkdir -p "$TARGET_MNT"/usr/share/keyrings
+  cp -f -- "$CHROOTDIR"/usr/share/keyrings/*.gpg "$CHROOTDIR"/"$TARGET_MNT"/usr/share/keyrings
+  chroot -- "$CHROOTDIR" qemu-debootstrap --arch=armhf --include=ssh,sudo,chrony,fake-hwclock,openssl,vim,nano,cryptsetup,locales,less,cpufrequtils,usbutils,haveged "$DISTRO" "$TARGET_MNT" http://ftp.debian.org/debian/
 }
 
-chroot "$CHROOTDIR" grep updates "$TARGET_MNT"/etc/apt/sources.list || {
-  release=$(chroot "$CHROOTDIR" cat "$TARGET_MNT"/etc/apt/sources.list | head -1  | awk ' { print $3 } ')
+chroot -- "$CHROOTDIR" grep updates -- "$TARGET_MNT"/etc/apt/sources.list || {
+  release=$(chroot -- "$CHROOTDIR" cat -- "$TARGET_MNT"/etc/apt/sources.list | head -1  | awk ' { print $3 } ')
   echo deb http://ftp.debian.org/debian $release-updates main >> "$CHROOTDIR"/"$TARGET_MNT"/etc/apt/sources.list
   echo deb http://security.debian.org $release/updates main >> "$CHROOTDIR"/"$TARGET_MNT"/etc/apt/sources.list
-  chroot "$CHROOTDIR" chroot "$TARGET_MNT" apt-get update
-  chroot "$CHROOTDIR" chroot "$TARGET_MNT" apt-get -y upgrade
-  chroot "$CHROOTDIR" chroot "$TARGET_MNT" apt-get install -y python
-  chroot "$CHROOTDIR" chroot "$TARGET_MNT" apt-get clean
+  chroot -- "$CHROOTDIR" chroot -- "$TARGET_MNT" apt-get update
+  chroot -- "$CHROOTDIR" chroot -- "$TARGET_MNT" apt-get -y upgrade
+  chroot -- "$CHROOTDIR" chroot -- "$TARGET_MNT" apt-get install -y python
+  chroot -- "$CHROOTDIR" chroot -- "$TARGET_MNT" apt-get clean
 }
 
 # Create fstab.
 echo "/dev/mmcblk0p1 / ext4 defaults,noatime 1 1" > "$CHROOTDIR"/"$TARGET_MNT"/etc/fstab
 
 # Set the system to boot as multi-user, not graphical.
-ln -sf /lib/systemd/system/multi-user.target "$CHROOTDIR"/"$TARGET_MNT"/etc/systemd/system/default.target
+ln -sf -- /lib/systemd/system/multi-user.target "$CHROOTDIR"/"$TARGET_MNT"/etc/systemd/system/default.target
 
 # Customize SSH to do the right thing.
-rm -f "$CHROOTDIR"/"$TARGET_MNT"/etc/ssh/ssh_host*
+rm -f -- "$CHROOTDIR"/"$TARGET_MNT"/etc/ssh/ssh_host*
 cat > "$CHROOTDIR"/"$TARGET_MNT"/usr/bin/ssh-gen-host-keys <<"HEREDOC"
 #!/bin/bash -e
 FILES=$(ls /etc/ssh/ssh_host_* 2> /dev/null | wc -l)
@@ -284,7 +284,7 @@ do_rsa_keygen
 do_ecdsa_keygen
 
 HEREDOC
-chmod +x "$CHROOTDIR"/"$TARGET_MNT"/usr/bin/ssh-gen-host-keys
+chmod +x -- "$CHROOTDIR"/"$TARGET_MNT"/usr/bin/ssh-gen-host-keys
 cat > "$CHROOTDIR"/"$TARGET_MNT"/etc/systemd/system/ssh-gen-host-keys.service <<HEREDOC
 [Unit]
 Description=Generate SSH host keys
@@ -298,20 +298,20 @@ ExecStart=/usr/bin/ssh-gen-host-keys
 [Install]
 WantedBy=multi-user.target
 HEREDOC
-chroot "$CHROOTDIR" chroot "$TARGET_MNT" systemctl enable ssh-gen-host-keys.service
+chroot -- "$CHROOTDIR" chroot -- "$TARGET_MNT" systemctl enable ssh-gen-host-keys.service
 
-if chroot "$CHROOTDIR" grep UseDNS "$TARGET_MNT"/etc/ssh/sshd_config ; then
-  sed -i 's/^UseDNS.*/UseDNS no/g' "$CHROOTDIR"/"$TARGET_MNT"/etc/ssh/sshd_config
+if chroot -- "$CHROOTDIR" grep UseDNS "$TARGET_MNT"/etc/ssh/sshd_config ; then
+  sed -i -- 's/^UseDNS.*/UseDNS no/g' "$CHROOTDIR"/"$TARGET_MNT"/etc/ssh/sshd_config
 else
   echo "UseDNS no" >> "$CHROOTDIR"/"$TARGET_MNT"/etc/ssh/sshd_config
 fi
 
 # We are disabling the journal on disk to prevent the system
 # from ruining the MMC SD card.
-# chroot "$CHROOTDIR" mkdir -p "$TARGET_MNT"/var/log/journal
+# chroot -- "$CHROOTDIR" mkdir -p "$TARGET_MNT"/var/log/journal
 
 # Remove machine ID and ensure it is generated on next boot.
-rm -f "$CHROOTDIR"/"$TARGET_MNT"/etc/machine-id
+rm -f -- "$CHROOTDIR"/"$TARGET_MNT"/etc/machine-id
 cat > "$CHROOTDIR"/"$TARGET_MNT"/etc/systemd/system/systemd-machine-id-setup.service <<HEREDOC
 [Unit]
 Description=Generate machine ID
@@ -328,11 +328,11 @@ ExecStart=/bin/systemd-machine-id-setup
 [Install]
 WantedBy=sysinit.target
 HEREDOC
-chroot "$CHROOTDIR" chroot "$TARGET_MNT" systemctl enable systemd-machine-id-setup.service
+chroot -- "$CHROOTDIR" chroot -- "$TARGET_MNT" systemctl enable systemd-machine-id-setup.service
 
 echo "ledtrig_heartbeat" > "$CHROOTDIR"/"$TARGET_MNT"/usr/lib/modules-load.d/ledtrig.conf
 echo "ci_hdrc_imx" > "$CHROOTDIR"/"$TARGET_MNT"/usr/lib/modules-load.d/ci_hdrc.conf
-mkdir -p "$CHROOTDIR"/"$TARGET_MNT"/lib/modprobe.d
+mkdir -p -- "$CHROOTDIR"/"$TARGET_MNT"/lib/modprobe.d
 echo "options g_multi dev_addr=1a:55:89:a2:69:41 host_addr=1a:55:89:a2:69:42 removable=1 ro=1" > \
      "$CHROOTDIR"/"$TARGET_MNT"/lib/modprobe.d/g_multi.conf
 cat > "$CHROOTDIR"/"$TARGET_MNT"/etc/systemd/system/g_multi.service <<HEREDOC
@@ -349,7 +349,7 @@ ExecStart=/bin/bash -c 'test -e /sys/bus/usb/devices/usb1 || /sbin/modprobe g_mu
 [Install]
 WantedBy=multi-user.target
 HEREDOC
-chroot "$CHROOTDIR" chroot "$TARGET_MNT" systemctl enable g_multi.service
+chroot -- "$CHROOTDIR" chroot -- "$TARGET_MNT" systemctl enable g_multi.service
 
 echo 'allow-hotplug usb0
 iface usb0 inet static
@@ -361,21 +361,21 @@ iface usb0 inet static
 
 echo "usbarmory" > "$CHROOTDIR"/"$TARGET_MNT"/etc/hostname
 
-chroot "$CHROOTDIR" chroot "$TARGET_MNT" update-rc.d networking enable
+chroot -- "$CHROOTDIR" chroot -- "$TARGET_MNT" update-rc.d networking enable
 
 if [ -n "$KEYFILE" ] ; then
-  mkdir -p "$CHROOTDIR"/"$TARGET_MNT"/root/.ssh
-  chmod 700 "$CHROOTDIR"/"$TARGET_MNT"/root/.ssh
-  cp -f "$KEYFILE" "$CHROOTDIR"/"$TARGET_MNT"/root/.ssh/authorized_keys
-  chmod 600 "$CHROOTDIR"/"$TARGET_MNT"/root/.ssh/authorized_keys
+  mkdir -p -- "$CHROOTDIR"/"$TARGET_MNT"/root/.ssh
+  chmod 700 -- "$CHROOTDIR"/"$TARGET_MNT"/root/.ssh
+  cp -f -- "$KEYFILE" "$CHROOTDIR"/"$TARGET_MNT"/root/.ssh/authorized_keys
+  chmod 600 -- "$CHROOTDIR"/"$TARGET_MNT"/root/.ssh/authorized_keys
 else
-  chroot "$CHROOTDIR" chroot "$TARGET_MNT" passwd --delete root
+  chroot -- "$CHROOTDIR" chroot -- "$TARGET_MNT" passwd --delete root
 fi
 
 # Compile the kernel and bootloader now.
 export ARCH=arm
 export parallelism=$( cat /proc/cpuinfo  | grep processor | wc -l )
-chroot "$CHROOTDIR" bash -c "
+chroot -- "$CHROOTDIR" bash -c "
 set -ex
 pushd /usr/src/usbarmory
 cp usbarmory_linux.config linux/.config
@@ -414,19 +414,19 @@ popd
 echo "#!/bin/bash
 cp -f /boot/imx53-usbarmory-host.dtb /boot/imx53-usbarmory.dtb
 " > "$CHROOTDIR"/"$TARGET_MNT"/usr/local/bin/hostmode
-chmod +x "$CHROOTDIR"/"$TARGET_MNT"/usr/local/bin/hostmode
+chmod +x -- "$CHROOTDIR"/"$TARGET_MNT"/usr/local/bin/hostmode
 
 echo "#!/bin/bash
 cp -f /boot/imx53-usbarmory-device.dtb /boot/imx53-usbarmory.dtb
 " > "$CHROOTDIR"/"$TARGET_MNT"/usr/local/bin/devicemode
-chmod +x "$CHROOTDIR"/"$TARGET_MNT"/usr/local/bin/devicemode
+chmod +x -- "$CHROOTDIR"/"$TARGET_MNT"/usr/local/bin/devicemode
 
 # Switch mode to host if requested by user.
 if [ "$INITIALMODE" == "host" ] ; then
-  chroot "$CHROOTDIR" chroot "$TARGET_MNT" /usr/local/bin/hostmode
+  chroot -- "$CHROOTDIR" chroot -- "$TARGET_MNT" /usr/local/bin/hostmode
 fi
 
-chroot "$CHROOTDIR" fstrim -v "$TARGET_MNT"
+chroot -- "$CHROOTDIR" fstrim -v "$TARGET_MNT"
 
 # Install bootloader
 dd if="$CHROOTDIR"/usr/src/usbarmory/u-boot/u-boot.imx of="$TARGET_DEV" bs=512 seek=2 conv=fsync
