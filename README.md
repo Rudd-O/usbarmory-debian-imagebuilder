@@ -53,6 +53,8 @@ The parameters are:
    * Device mode will boot in a mode that is compatible with operation as a USB device connected to a computer.
 * path to SSH public key file: if specified (this is optional), then the contents of this file will be embedded into the `root` user SSH authorized keys database, thereby ensuring that only the possessor of the corresponding private key can SSH into the USB Armory.  If this file is not specified, then the `root` user password will be blank and you will be able to SSH into the device directly.
 
+There are a number of overridable environment variables at the top of the script.  You can prefix the command line that runs the script with variable definitions of the form `variable=value` to override those values, thus avoiding having to modify the script in order to change those values.  Always make sure to run this program in a sanitized environment so that variables injected by potential attackers cannot modify the behavior of this program.
+
 After setup is done, you can use `dd` to transfer the image(s) to the appropriate media for booting (which must be minimum 4 GB in size).  See below for examples and more information.
 
 Transferring the images to media
