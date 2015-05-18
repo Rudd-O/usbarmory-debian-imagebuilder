@@ -24,6 +24,7 @@
 # The kernel module options for g_multi are specified in
 # /lib/modprobe.d/g_multi.conf
 
+# Source configuration.
 linuxurl=https://www.kernel.org/pub/linux/kernel/v4.x/linux-4.0.tar.xz
 linuxsum=https://www.kernel.org/pub/linux/kernel/v4.x/linux-4.0.tar.sign
 ubooturl=http://ftp.denx.de/pub/u-boot/u-boot-2015.04.tar.bz2
